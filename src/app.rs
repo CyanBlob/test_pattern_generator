@@ -1,26 +1,57 @@
-/// We derive Deserialize/Serialize so we can persist app state on shutdown.
-#[derive(serde::Deserialize, serde::Serialize)]
-#[serde(default)] // if we add new fields, give them default values when deserializing old state
-pub struct TemplateApp {
-    // Example stuff:
-    label: String,
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-    // this how you opt-out of serialization of a member
-    #[serde(skip)]
-    value: f32,
+use std::io::Cursor;
+use eframe::egui;
+use egui_extras::RetainedImage;
+use bmp_rust::bmp::BMP;
+use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, RgbImage};
+
+mod bmp_generator;
+
+fn main() -> Result<(), eframe::Error> {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    let options = eframe::NativeOptions {
+        initial_window_size: Some(egui::vec2(400.0, 1000.0)),
+        ..Default::default()
+    };
+    eframe::run_native(
+        "Show an image with eframe/egui",
+        options,
+        Box::new(|_cc| Box::<TestPatternGenerator>::default()),
+    )
 }
 
-impl Default for TemplateApp {
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct TestPatternGenerator {
+    #[serde(skip)]
+    image: RetainedImage,
+    rounding: f32,
+    tint: egui::Color32,
+    #[serde(skip)]
+    bmp: Option<BMP>,
+}
+
+impl Default for TestPatternGenerator {
     fn default() -> Self {
+        let bmp_from_file = image::open("assets/test.bmp").unwrap();
+
+        let mut bytes = Vec::new();
+        bmp_from_file.write_to(&mut Cursor::new(&mut bytes), image::ImageOutputFormat::Png).unwrap();
+
         Self {
-            // Example stuff:
-            label: "Hello World!".to_owned(),
-            value: 2.7,
+            // crab image is CC0, found on https://stocksnap.io/search/crab
+            //image: RetainedImage::from_image_bytes("crab.png", include_bytes!("/Users/andrew/Development/test_pattern_generator/assets/test_pattern.png")).unwrap(),
+            image: RetainedImage::from_image_bytes("crab.png", bytes.as_slice()).unwrap(),
+            rounding: 32.0,
+            tint: egui::Color32::from_rgb(100, 200, 200),
+            bmp: None,
         }
     }
 }
 
-impl TemplateApp {
+impl TestPatternGenerator {
     /// Called once before the first frame.
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         // This is also where you can customize the look and feel of egui using
@@ -34,83 +65,78 @@ impl TemplateApp {
 
         Default::default()
     }
-}
 
-impl eframe::App for TemplateApp {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
+    pub fn update_image_with_bmp_file(&mut self, path: &str) {
+        let bmp_from_file = image::open(path).unwrap();
+
+        let mut bytes = Vec::new();
+        bmp_from_file.write_to(&mut Cursor::new(&mut bytes), image::ImageOutputFormat::Png).unwrap();
+
+        self.image = RetainedImage::from_image_bytes("image.png", bytes.as_slice()).unwrap();
     }
 
-    /// Called each time the UI needs repainting, which may be many times per second.
-    /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
+    pub fn update_image_with_bmp(&mut self) {
+
+        self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::generate_test());
+
+        let bytes = &self.bmp.as_ref().unwrap().contents;
+
+        self.image = RetainedImage::from_image_bytes("image.png", bytes.as_slice()).unwrap();
+    }
+
+    pub fn save_image(&self, path: &str) {
+        self.bmp.clone().unwrap().save_to_new(path).unwrap();
+    }
+}
+
+impl eframe::App for TestPatternGenerator {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let Self { label, value } = self;
+        egui::CentralPanel::default().show(ctx, |ui| {
 
-        // Examples of how to create different panels and windows.
-        // Pick whichever suits you.
-        // Tip: a good default choice is to just keep the `CentralPanel`.
-        // For inspiration and more examples, go to https://emilk.github.io/egui
-
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Quit").clicked() {
-                        _frame.close();
-                    }
-                });
-            });
-        });
-
-        egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
-
-            ui.horizontal(|ui| {
-                ui.label("Write something: ");
-                ui.text_edit_singleline(label);
-            });
-
-            ui.add(egui::Slider::new(value, 0.0..=10.0).text("value"));
-            if ui.button("Increment").clicked() {
-                *value += 1.0;
+            if ui.button("Generate").clicked() {
+                self.update_image_with_bmp();
             }
 
-            ui.with_layout(egui::Layout::bottom_up(egui::Align::LEFT), |ui| {
-                ui.horizontal(|ui| {
-                    ui.spacing_mut().item_spacing.x = 0.0;
-                    ui.label("powered by ");
-                    ui.hyperlink_to("egui", "https://github.com/emilk/egui");
-                    ui.label(" and ");
-                    ui.hyperlink_to(
-                        "eframe",
-                        "https://github.com/emilk/egui/tree/master/crates/eframe",
-                    );
-                    ui.label(".");
-                });
+            if ui.button("Save").clicked() {
+                self.save_image("assets/image.bmp");
+            }
+
+            ui.heading("This is an image:");
+            self.image.show_scaled(ui, 500.0 / self.image.height() as f32);
+
+            ui.add_space(32.0);
+
+            /*ui.heading("This is a tinted image with rounded corners:");
+            ui.add(
+                egui::Image::new(self.image.texture_id(ctx), self.image.size_vec2())
+                    .tint(self.tint)
+            );
+
+            ui.horizontal(|ui| {
+                ui.label("Tint:");
+                egui::color_picker::color_edit_button_srgba(
+                    ui,
+                    &mut self.tint,
+                    egui::color_picker::Alpha::BlendOrAdditive,
+                );
+
+                ui.add_space(16.0);
+
+                ui.label("Rounding:");
+                ui.add(
+                    egui::DragValue::new(&mut self.rounding)
+                        .speed(1.0)
+                        .clamp_range(0.0..=0.5 * self.image.size_vec2().min_elem()),
+                );
             });
+
+            ui.add_space(32.0);*/
+
+            /*ui.heading("This is an image you can click:");
+            ui.add(egui::ImageButton::new(
+                self.image.texture_id(ctx),
+                self.image.size_vec2(),
+            ));*/
         });
-
-        egui::CentralPanel::default().show(ctx, |ui| {
-            // The central panel the region left after adding TopPanel's and SidePanel's
-
-            ui.heading("eframe template");
-            ui.hyperlink("https://github.com/emilk/eframe_template");
-            ui.add(egui::github_link_file!(
-                "https://github.com/emilk/eframe_template/blob/master/",
-                "Source code."
-            ));
-            egui::warn_if_debug_build(ui);
-        });
-
-        if false {
-            egui::Window::new("Window").show(ctx, |ui| {
-                ui.label("Windows can be moved by dragging them.");
-                ui.label("They are automatically sized based on contents.");
-                ui.label("You can turn on resizing and scrolling if you like.");
-                ui.label("You would normally choose either panels OR windows.");
-            });
-        }
     }
 }
