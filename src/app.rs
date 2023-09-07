@@ -1,26 +1,11 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+//#![cfg_attr(not(debug_assertions))] // hide console window on Windows in release
 
-use std::cmp::min;
-use bmp_rust::bmp::BMP;
+use bmp::Image;
 use eframe::egui;
 use egui_extras::RetainedImage;
-use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, RgbImage};
 use std::io::Cursor;
 
 mod bmp_generator;
-
-fn main() -> Result<(), eframe::Error> {
-    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
-    let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(400.0, 1000.0)),
-        ..Default::default()
-    };
-    eframe::run_native(
-        "Show an image with eframe/egui",
-        options,
-        Box::new(|_cc| Box::<TestPatternGenerator>::default()),
-    )
-}
 
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)]
@@ -29,17 +14,17 @@ pub struct TestPatternGenerator {
     image: RetainedImage,
     rounding: f32,
     #[serde(skip)]
-    bmp: Option<BMP>,
-    height: u16,
-    width: u16,
+    bmp: Option<Image>,
+    height: u32,
+    width: u32,
     scale: f32,
-    num_stripe_colors: u16,
-    stripe_spacing: u16,
-    rect_start: [u16; 2],
-    rect_end: [u16; 2],
+    num_stripe_colors: u32,
+    stripe_spacing: u32,
+    rect_start: [u32; 2],
+    rect_end: [u32; 2],
     rect_color: egui::Color32,
-    elipse_center: [u16; 2],
-    elipse_size: [u16; 2],
+    elipse_center: [u32; 2],
+    elipse_size: [u32; 2],
     elipse_color: egui::Color32,
 }
 
@@ -53,12 +38,11 @@ impl Default for TestPatternGenerator {
             .unwrap();
 
         let bmp = Some(bmp_generator::bmp_generator::BmpGenerator::clear(
-            1920,
-            1080,
-            None,
+            1920, 1080,
         ));
 
-        let bytes = &bmp.as_ref().unwrap().contents;
+        let mut bytes: Vec<u8> = vec![];
+        let _ = bmp.as_ref().unwrap().to_writer(&mut bytes);
 
         let image = RetainedImage::from_image_bytes("image.png", bytes.as_slice())
             .unwrap()
@@ -110,10 +94,6 @@ impl TestPatternGenerator {
     }
 
     pub fn update_image_with_bmp(&mut self) {
-        self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::generate_test(
-            &mut self.bmp.as_mut().unwrap(),
-        ));
-
         self.update_image();
     }
 
@@ -131,30 +111,41 @@ impl TestPatternGenerator {
     }
 
     pub fn add_rect(&mut self) {
+        let color = [
+            self.rect_color.r(),
+            self.rect_color.g(),
+            self.rect_color.b(),
+        ];
         self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::add_rect(
             &mut self.bmp.as_mut().unwrap(),
             self.rect_start,
             self.rect_end,
-            self.rect_color.to_array(),
+            color,
         ));
 
         self.update_image();
     }
 
     pub fn add_elipse(&mut self) {
+        let color = [
+            self.elipse_color.r(),
+            self.elipse_color.g(),
+            self.elipse_color.b(),
+        ];
         self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::add_elipse(
             &mut self.bmp.as_mut().unwrap(),
             self.elipse_center,
             self.elipse_size,
-            self.elipse_color.to_array(),
+            color,
         ));
 
         self.update_image();
     }
 
-
     pub fn update_image(&mut self) {
-        let bytes = &self.bmp.as_ref().unwrap().contents;
+        //let bytes = &self.bmp.as_ref().unwrap().contents;
+        let mut bytes: Vec<u8> = vec![];
+        let _ = self.bmp.as_ref().unwrap().to_writer(&mut bytes);
 
         self.image = RetainedImage::from_image_bytes("image.png", bytes.as_slice())
             .unwrap()
@@ -162,7 +153,8 @@ impl TestPatternGenerator {
     }
 
     pub fn save_image(&self, path: &str) {
-        self.bmp.clone().unwrap().save_to_new(path).unwrap();
+        let bmp = self.bmp.clone().unwrap();
+        bmp.save(path).unwrap();
     }
 }
 
@@ -178,7 +170,6 @@ impl eframe::App for TestPatternGenerator {
                 self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::clear(
                     self.width,
                     self.height,
-                    None,
                 ));
                 self.update_image();
             }
@@ -193,14 +184,26 @@ impl eframe::App for TestPatternGenerator {
 
             //ui.label("Color:");
             ui.add_space(10.0);
-            ui.add(egui::Slider::new(&mut self.rect_color[0], 0..=255).text("Red").text_color(egui::Color32::from_rgb(255, 0, 0)));
-            ui.add(egui::Slider::new(&mut self.rect_color[1], 0..=255).text("Green").text_color(egui::Color32::from_rgb(0, 255, 0)));
-            ui.add(egui::Slider::new(&mut self.rect_color[2], 0..=255).text("Blue").text_color(egui::Color32::from_rgb(0, 0, 255)));
-            ui.add(egui::Slider::new(&mut self.rect_color[3], 0..=255).text("Alpha"));
+            ui.add(
+                egui::Slider::new(&mut self.rect_color[0], 0..=255)
+                    .text("Red")
+                    .text_color(egui::Color32::from_rgb(255, 0, 0)),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.rect_color[1], 0..=255)
+                    .text("Green")
+                    .text_color(egui::Color32::from_rgb(0, 255, 0)),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.rect_color[2], 0..=255)
+                    .text("Blue")
+                    .text_color(egui::Color32::from_rgb(0, 0, 255)),
+            );
+            //ui.add(egui::Slider::new(&mut self.rect_color[3], 0..=255).text("Alpha"));
             egui::color_picker::color_edit_button_srgba(
                 ui,
                 &mut self.rect_color,
-                egui::color_picker::Alpha::BlendOrAdditive,
+                egui::color_picker::Alpha::Opaque,
             );
 
             ui.add_space(5.0);
@@ -219,14 +222,26 @@ impl eframe::App for TestPatternGenerator {
 
             //ui.label("Color:");
             ui.add_space(10.0);
-            ui.add(egui::Slider::new(&mut self.elipse_color[0], 0..=255).text("Red").text_color(egui::Color32::from_rgb(255, 0, 0)));
-            ui.add(egui::Slider::new(&mut self.elipse_color[1], 0..=255).text("Green").text_color(egui::Color32::from_rgb(0, 255, 0)));
-            ui.add(egui::Slider::new(&mut self.elipse_color[2], 0..=255).text("Blue").text_color(egui::Color32::from_rgb(0, 0, 255)));
-            ui.add(egui::Slider::new(&mut self.elipse_color[3], 0..=255).text("Alpha"));
+            ui.add(
+                egui::Slider::new(&mut self.elipse_color[0], 0..=255)
+                    .text("Red")
+                    .text_color(egui::Color32::from_rgb(255, 0, 0)),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.elipse_color[1], 0..=255)
+                    .text("Green")
+                    .text_color(egui::Color32::from_rgb(0, 255, 0)),
+            );
+            ui.add(
+                egui::Slider::new(&mut self.elipse_color[2], 0..=255)
+                    .text("Blue")
+                    .text_color(egui::Color32::from_rgb(0, 0, 255)),
+            );
+            //ui.add(egui::Slider::new(&mut self.elipse_color[3], 0..=255).text("Alpha"));
             egui::color_picker::color_edit_button_srgba(
                 ui,
                 &mut self.elipse_color,
-                egui::color_picker::Alpha::BlendOrAdditive,
+                egui::color_picker::Alpha::Opaque,
             );
 
             ui.add_space(5.0);
@@ -261,11 +276,13 @@ impl eframe::App for TestPatternGenerator {
                         .step_by(0.01)
                         .text("Scale"),
                 );
-                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
-                    egui::ScrollArea::horizontal().show(ui, |ui| {
-                        self.image.show_scaled(ui, self.scale);
+                egui::ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        egui::ScrollArea::horizontal().show(ui, |ui| {
+                            self.image.show_scaled(ui, self.scale);
+                        });
                     });
-                });
             });
     }
 }

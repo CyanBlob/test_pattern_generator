@@ -407,10 +407,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "bmp-rust"
-version = "0.4.1"
+name = "bmp"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73b395a9079989a07f84e43d9b4f1fcd5a02f79b15324a8b83a0a094618b0fa4"
+checksum = "69985ff4f58085ac696454692d0b646a66ad1f9cc9be294c91dc51bb5df511ae"
+dependencies = [
+ "byteorder",
+]
 
 [[package]]
 name = "bumpalo"
@@ -2293,7 +2296,7 @@ dependencies = [
 name = "test_pattern_generator"
 version = "0.1.0"
 dependencies = [
- "bmp-rust",
+ "bmp",
  "eframe",
  "egui",
  "egui_extras",

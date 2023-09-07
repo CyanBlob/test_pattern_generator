@@ -7,7 +7,8 @@ rust-version = "1.71"
 
 
 [dependencies]
-bmp-rust ="0.4.1"
+#bmp-rust = {path ="./3rd_party/BMP-Rust"}
+bmp = "0.5.0"
 egui = "0.22.0"
 egui_extras = {version="0.22.0", features = ["image"]}
 image = { version = "0.24", features = ["jpeg", "png"] }
