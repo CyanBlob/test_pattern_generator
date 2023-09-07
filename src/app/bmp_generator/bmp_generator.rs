@@ -9,6 +9,12 @@ impl BmpGenerator {
         bmp
     }
 
+    pub fn add_rect(bmp: &mut BMP, rect_start: [u16; 2], rect_end: [u16; 2], rect_color: [u8; 4]) -> BMP {
+        let _ = bmp.draw_rectangle(Some(rect_color), Some(rect_color), rect_start, rect_end);
+
+        bmp.clone()
+    }
+
     pub fn generate_test(bmp: &mut BMP) -> BMP {
         let mut bmp_from_scratch = BMP::new(2160, 3840, Some([255, 255, 0, 255]));
 
@@ -19,7 +25,7 @@ impl BmpGenerator {
             [300, 300],
             [600, 600],
         )
-        .expect("Failed to bucket fill");
+            .expect("Failed to bucket fill");
 
         bmp.clone()
     }
@@ -46,7 +52,6 @@ impl BmpGenerator {
 
             for i in 0..spacing as u16 {
                 for j in 0..height {
-
                     if i + x < width
                     {
                         let _ = bmp.change_color_of_pixel(i + x, j, color);

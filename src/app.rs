@@ -32,9 +32,12 @@ pub struct TestPatternGenerator {
     bmp: Option<BMP>,
     height: u16,
     width: u16,
-    num_colors: u16,
-    spacing: u16,
     scale: f32,
+    num_stripe_colors: u16,
+    stripe_spacing: u16,
+    rect_start: [u16; 2],
+    rect_end: [u16; 2],
+    rect_color: [u8; 4],
 }
 
 impl Default for TestPatternGenerator {
@@ -46,16 +49,31 @@ impl Default for TestPatternGenerator {
             .write_to(&mut Cursor::new(&mut bytes), image::ImageOutputFormat::Png)
             .unwrap();
 
+        let bmp = Some(bmp_generator::bmp_generator::BmpGenerator::clear(
+            1920,
+            1080,
+            None,
+        ));
+
+        let bytes = &bmp.as_ref().unwrap().contents;
+
+        let image = RetainedImage::from_image_bytes("image.png", bytes.as_slice())
+            .unwrap()
+            .with_options(egui::TextureOptions::NEAREST);
+
         Self {
-            image: RetainedImage::from_image_bytes("crab.png", bytes.as_slice()).unwrap(),
+            image: image,
             rounding: 32.0,
             tint: egui::Color32::from_rgb(100, 200, 200),
-            bmp: None,
+            bmp: bmp,
             width: 1920,
             height: 1080,
-            num_colors: 8,
-            spacing: 1,
+            num_stripe_colors: 8,
+            stripe_spacing: 1,
             scale: 500.0 / 1080.0,
+            rect_start: [100, 100],
+            rect_end: [200, 200],
+            rect_color: [0, 255, 255, 255]
         }
     }
 }
@@ -91,11 +109,7 @@ impl TestPatternGenerator {
             &mut self.bmp.as_mut().unwrap(),
         ));
 
-        let bytes = &self.bmp.as_ref().unwrap().contents;
-
-        self.image = RetainedImage::from_image_bytes("image.png", bytes.as_slice())
-            .unwrap()
-            .with_options(egui::TextureOptions::NEAREST);
+        self.update_image();
     }
 
     pub fn update_image_with_bmp_stripes(&mut self) {
@@ -103,16 +117,23 @@ impl TestPatternGenerator {
             bmp_generator::bmp_generator::BmpGenerator::generate_stripes(
                 self.width,
                 self.height,
-                self.spacing,
-                self.num_colors,
+                self.stripe_spacing,
+                self.num_stripe_colors,
             ),
         );
 
-        let bytes = &self.bmp.as_ref().unwrap().contents;
+        self.update_image();
+    }
 
-        self.image = RetainedImage::from_image_bytes("image.png", bytes.as_slice())
-            .unwrap()
-            .with_options(egui::TextureOptions::NEAREST)
+    pub fn add_rect(&mut self) {
+        self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::add_rect(
+            &mut self.bmp.as_mut().unwrap(),
+            self.rect_start,
+            self.rect_end,
+            self.rect_color
+        ));
+
+        self.update_image();
     }
 
     pub fn update_image(&mut self) {
@@ -131,15 +152,31 @@ impl TestPatternGenerator {
 impl eframe::App for TestPatternGenerator {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            if ui.button("Generate").clicked() {
-                self.update_image_with_bmp();
-            }
-
             ui.add(egui::Slider::new(&mut self.width, 0..=3840 * 2).text("Width"));
             ui.add(egui::Slider::new(&mut self.height, 0..=2160 * 2).text("Height"));
-            ui.add(egui::Slider::new(&mut self.num_colors, 0..=8).text("Num Colors"));
+
+            ui.add_space(32.0);
+
+            ui.add(egui::Slider::new(&mut self.rect_start[0], 0..= self.width).text("Start X"));
+            ui.add(egui::Slider::new(&mut self.rect_start[1], 0..= self.height).text("Start Y"));
+            ui.add(egui::Slider::new(&mut self.rect_end[0], self.rect_start[0] + 2..= self.width).text("End X"));
+            ui.add(egui::Slider::new(&mut self.rect_end[1], self.rect_start[1] + 2..= self.height).text("End Y"));
+
+            if ui.button("Generate rect").clicked() {
+                if self.rect_end[0] <= self.rect_start[0] {
+                    self.rect_end[0] = self.rect_start[0] + 2;
+                }
+                if self.rect_end[1] <= self.rect_start[1] {
+                    self.rect_end[1] = self.rect_start[1] + 2;
+                }
+                self.add_rect();
+            }
+
+            ui.add_space(32.0);
+
+            ui.add(egui::Slider::new(&mut self.num_stripe_colors, 0..=8).text("Num Colors"));
             ui.add(
-                egui::Slider::new(&mut self.spacing, 0..=2160)
+                egui::Slider::new(&mut self.stripe_spacing, 0..=2160)
                     .step_by(1.0)
                     .text("Spacing"),
             );
