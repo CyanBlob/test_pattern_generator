@@ -170,7 +170,7 @@ impl eframe::App for TestPatternGenerator {
                         .step_by(0.01)
                         .text("Scale"),
                 );
-                egui::ScrollArea::horizontal().show(ui, |ui| {
+                egui::ScrollArea::horizontal().auto_shrink([false, false]).show(ui, |ui| {
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         // Add a lot of widgets here.
                         self.image.show_scaled(ui, self.scale);

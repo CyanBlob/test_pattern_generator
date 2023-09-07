@@ -46,7 +46,11 @@ impl BmpGenerator {
 
             for i in 0..spacing as u16 {
                 for j in 0..height {
-                    let _ = bmp.change_color_of_pixel(i + x, j, color);
+
+                    if i + x < width
+                    {
+                        let _ = bmp.change_color_of_pixel(i + x, j, color);
+                    }
                 }
             }
         }
