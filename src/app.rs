@@ -172,6 +172,8 @@ impl eframe::App for TestPatternGenerator {
             ui.add(egui::Slider::new(&mut self.width, 0..=3840 * 2).text("Width"));
             ui.add(egui::Slider::new(&mut self.height, 0..=2160 * 2).text("Height"));
 
+            ui.add_space(5.0);
+
             if ui.button("Reset").clicked() {
                 self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::clear(
                     self.width,
@@ -189,16 +191,25 @@ impl eframe::App for TestPatternGenerator {
             ui.add(egui::Slider::new(&mut self.rect_end[0], 0..=self.width).text("End X"));
             ui.add(egui::Slider::new(&mut self.rect_end[1], 0..=self.height).text("End Y"));
 
-            ui.label("Color:");
+            //ui.label("Color:");
+            ui.add_space(10.0);
+            ui.add(egui::Slider::new(&mut self.rect_color[0], 0..=255).text("Red").text_color(egui::Color32::from_rgb(255, 0, 0)));
+            ui.add(egui::Slider::new(&mut self.rect_color[1], 0..=255).text("Green").text_color(egui::Color32::from_rgb(0, 255, 0)));
+            ui.add(egui::Slider::new(&mut self.rect_color[2], 0..=255).text("Blue").text_color(egui::Color32::from_rgb(0, 0, 255)));
+            ui.add(egui::Slider::new(&mut self.rect_color[3], 0..=255).text("Alpha"));
             egui::color_picker::color_edit_button_srgba(
                 ui,
                 &mut self.rect_color,
                 egui::color_picker::Alpha::BlendOrAdditive,
             );
 
+            ui.add_space(5.0);
+
             if ui.button("Generate rect").clicked() {
                 self.add_rect();
             }
+
+            ui.add_space(32.0);
 
             ui.add(egui::Slider::new(&mut self.elipse_center[0], 0..=self.width).text("Center X"));
             ui.add(egui::Slider::new(&mut self.elipse_center[1], 0..=self.height).text("Center Y"));
@@ -206,12 +217,19 @@ impl eframe::App for TestPatternGenerator {
             ui.add(egui::Slider::new(&mut self.elipse_size[0], 0..=self.width).text("Width"));
             ui.add(egui::Slider::new(&mut self.elipse_size[1], 0..=self.height).text("Height"));
 
-            ui.label("Color:");
+            //ui.label("Color:");
+            ui.add_space(10.0);
+            ui.add(egui::Slider::new(&mut self.elipse_color[0], 0..=255).text("Red").text_color(egui::Color32::from_rgb(255, 0, 0)));
+            ui.add(egui::Slider::new(&mut self.elipse_color[1], 0..=255).text("Green").text_color(egui::Color32::from_rgb(0, 255, 0)));
+            ui.add(egui::Slider::new(&mut self.elipse_color[2], 0..=255).text("Blue").text_color(egui::Color32::from_rgb(0, 0, 255)));
+            ui.add(egui::Slider::new(&mut self.elipse_color[3], 0..=255).text("Alpha"));
             egui::color_picker::color_edit_button_srgba(
                 ui,
                 &mut self.elipse_color,
                 egui::color_picker::Alpha::BlendOrAdditive,
             );
+
+            ui.add_space(5.0);
 
             if ui.button("Generate elipse").clicked() {
                 self.add_elipse();
