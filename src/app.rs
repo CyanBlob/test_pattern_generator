@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
+use std::cmp::min;
 use bmp_rust::bmp::BMP;
 use eframe::egui;
 use egui_extras::RetainedImage;
@@ -27,7 +28,6 @@ pub struct TestPatternGenerator {
     #[serde(skip)]
     image: RetainedImage,
     rounding: f32,
-    tint: egui::Color32,
     #[serde(skip)]
     bmp: Option<BMP>,
     height: u16,
@@ -37,7 +37,10 @@ pub struct TestPatternGenerator {
     stripe_spacing: u16,
     rect_start: [u16; 2],
     rect_end: [u16; 2],
-    rect_color: [u8; 4],
+    rect_color: egui::Color32,
+    elipse_center: [u16; 2],
+    elipse_size: [u16; 2],
+    elipse_color: egui::Color32,
 }
 
 impl Default for TestPatternGenerator {
@@ -64,7 +67,6 @@ impl Default for TestPatternGenerator {
         Self {
             image: image,
             rounding: 32.0,
-            tint: egui::Color32::from_rgb(100, 200, 200),
             bmp: bmp,
             width: 1920,
             height: 1080,
@@ -73,7 +75,10 @@ impl Default for TestPatternGenerator {
             scale: 500.0 / 1080.0,
             rect_start: [100, 100],
             rect_end: [200, 200],
-            rect_color: [0, 255, 255, 255]
+            rect_color: egui::Color32::from_rgb(100, 200, 200),
+            elipse_center: [1920 / 2, 1080 / 2],
+            elipse_size: [200, 200],
+            elipse_color: egui::Color32::from_rgb(200, 100, 100),
         }
     }
 }
@@ -130,11 +135,23 @@ impl TestPatternGenerator {
             &mut self.bmp.as_mut().unwrap(),
             self.rect_start,
             self.rect_end,
-            self.rect_color
+            self.rect_color.to_array(),
         ));
 
         self.update_image();
     }
+
+    pub fn add_elipse(&mut self) {
+        self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::add_elipse(
+            &mut self.bmp.as_mut().unwrap(),
+            self.elipse_center,
+            self.elipse_size,
+            self.elipse_color.to_array(),
+        ));
+
+        self.update_image();
+    }
+
 
     pub fn update_image(&mut self) {
         let bytes = &self.bmp.as_ref().unwrap().contents;
@@ -155,21 +172,49 @@ impl eframe::App for TestPatternGenerator {
             ui.add(egui::Slider::new(&mut self.width, 0..=3840 * 2).text("Width"));
             ui.add(egui::Slider::new(&mut self.height, 0..=2160 * 2).text("Height"));
 
+            if ui.button("Reset").clicked() {
+                self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::clear(
+                    self.width,
+                    self.height,
+                    None,
+                ));
+                self.update_image();
+            }
+
             ui.add_space(32.0);
 
-            ui.add(egui::Slider::new(&mut self.rect_start[0], 0..= self.width).text("Start X"));
-            ui.add(egui::Slider::new(&mut self.rect_start[1], 0..= self.height).text("Start Y"));
-            ui.add(egui::Slider::new(&mut self.rect_end[0], self.rect_start[0] + 2..= self.width).text("End X"));
-            ui.add(egui::Slider::new(&mut self.rect_end[1], self.rect_start[1] + 2..= self.height).text("End Y"));
+            ui.add(egui::Slider::new(&mut self.rect_start[0], 0..=self.width).text("Start X"));
+            ui.add(egui::Slider::new(&mut self.rect_start[1], 0..=self.height).text("Start Y"));
+
+            ui.add(egui::Slider::new(&mut self.rect_end[0], 0..=self.width).text("End X"));
+            ui.add(egui::Slider::new(&mut self.rect_end[1], 0..=self.height).text("End Y"));
+
+            ui.label("Color:");
+            egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut self.rect_color,
+                egui::color_picker::Alpha::BlendOrAdditive,
+            );
 
             if ui.button("Generate rect").clicked() {
-                if self.rect_end[0] <= self.rect_start[0] {
-                    self.rect_end[0] = self.rect_start[0] + 2;
-                }
-                if self.rect_end[1] <= self.rect_start[1] {
-                    self.rect_end[1] = self.rect_start[1] + 2;
-                }
                 self.add_rect();
+            }
+
+            ui.add(egui::Slider::new(&mut self.elipse_center[0], 0..=self.width).text("Center X"));
+            ui.add(egui::Slider::new(&mut self.elipse_center[1], 0..=self.height).text("Center Y"));
+
+            ui.add(egui::Slider::new(&mut self.elipse_size[0], 0..=self.width).text("Width"));
+            ui.add(egui::Slider::new(&mut self.elipse_size[1], 0..=self.height).text("Height"));
+
+            ui.label("Color:");
+            egui::color_picker::color_edit_button_srgba(
+                ui,
+                &mut self.elipse_color,
+                egui::color_picker::Alpha::BlendOrAdditive,
+            );
+
+            if ui.button("Generate elipse").clicked() {
+                self.add_elipse();
             }
 
             ui.add_space(32.0);
@@ -180,15 +225,6 @@ impl eframe::App for TestPatternGenerator {
                     .step_by(1.0)
                     .text("Spacing"),
             );
-
-            if ui.button("Clear").clicked() {
-                self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::clear(
-                    self.width,
-                    self.height,
-                    None,
-                ));
-                self.update_image();
-            }
 
             if ui.button("Generate stripes").clicked() {
                 self.update_image_with_bmp_stripes();
