@@ -73,12 +73,12 @@ impl Default for TestPatternGenerator {
             num_stripe_colors: 8,
             stripe_spacing: 1,
             scale: 500.0 / 1080.0,
-            rect_start: [100, 100],
-            rect_end: [200, 200],
-            rect_color: egui::Color32::from_rgb(100, 200, 200),
+            rect_start: [760, 340],
+            rect_end: [1160, 740],
+            rect_color: egui::Color32::from_rgb(255, 0, 255),
             elipse_center: [1920 / 2, 1080 / 2],
             elipse_size: [200, 200],
-            elipse_color: egui::Color32::from_rgb(200, 100, 100),
+            elipse_color: egui::Color32::from_rgb(0, 255, 255),
         }
     }
 }
@@ -253,7 +253,7 @@ impl eframe::App for TestPatternGenerator {
             }
         });
         egui::SidePanel::right("Image panel")
-            .max_width(1500.0)
+            .max_width(3840.0)
             .show(ctx, |ui| {
                 ui.heading("Preview:");
                 ui.add(
