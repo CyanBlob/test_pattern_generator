@@ -243,16 +243,9 @@ impl eframe::App for TestPatternGenerator {
                         .step_by(0.01)
                         .text("Scale"),
                 );
-                egui::ScrollArea::horizontal().auto_shrink([false, false]).show(ui, |ui| {
-                    egui::ScrollArea::vertical().show(ui, |ui| {
-                        // Add a lot of widgets here.
+                egui::ScrollArea::vertical().auto_shrink([false, false]).show(ui, |ui| {
+                    egui::ScrollArea::horizontal().show(ui, |ui| {
                         self.image.show_scaled(ui, self.scale);
-
-                        /*ui.heading("This is an image you can click:");
-                        ui.add(egui::ImageButton::new(
-                            self.image.texture_id(ctx),
-                            self.image.size_vec2(),
-                        ));*/
                     });
                 });
             });
