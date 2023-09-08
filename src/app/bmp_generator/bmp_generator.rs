@@ -197,4 +197,36 @@ impl BmpGenerator {
 
         bmp
     }
+
+    pub fn generate_stripes_horizontal(width: u32, height: u32, spacing: u32, num_colors: u32) -> Image {
+        let mut bmp = Image::new(width, height);
+
+        let mut color_index = 0;
+
+        for x in (0..height).step_by(spacing as usize) {
+            let color = match (color_index) % num_colors {
+                0 => [255, 0, 0, 255],
+                1 => [0, 255, 0, 255],
+                2 => [0, 0, 255, 255],
+                3 => [255, 255, 0, 255],
+                4 => [0, 255, 255, 255],
+                5 => [255, 0, 255, 255],
+                6 => [0, 0, 0, 255],
+                7 => [255, 255, 255, 255],
+                _ => [0, 0, 0, 255],
+            };
+
+            color_index = color_index + 1;
+
+            for i in 0..spacing {
+                for j in 0..width {
+                    if i + x < height {
+                        let _ = bmp.set_pixel(j, x + i, Pixel::new(color[0], color[1], color[2]));
+                    }
+                }
+            }
+        }
+
+        bmp
+    }
 }

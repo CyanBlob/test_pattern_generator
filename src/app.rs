@@ -20,6 +20,7 @@ pub struct TestPatternGenerator {
     scale: f32,
     num_stripe_colors: u32,
     stripe_spacing: u32,
+    horizontal_stripes: bool,
     rect_start: [u32; 2],
     rect_end: [u32; 2],
     rect_rotation: f64,
@@ -59,6 +60,7 @@ impl Default for TestPatternGenerator {
             num_stripe_colors: 8,
             stripe_spacing: 1,
             scale: 500.0 / 1080.0,
+            horizontal_stripes: false,
             rect_start: [760, 340],
             rect_end: [1160, 740],
             rect_rotation: 0.0,
@@ -102,14 +104,28 @@ impl TestPatternGenerator {
     }
 
     pub fn update_image_with_bmp_stripes(&mut self) {
-        self.bmp = Some(
-            bmp_generator::bmp_generator::BmpGenerator::generate_stripes(
-                self.width,
-                self.height,
-                self.stripe_spacing,
-                self.num_stripe_colors,
-            ),
-        );
+        match self.horizontal_stripes {
+            true => {
+                self.bmp = Some(
+                    bmp_generator::bmp_generator::BmpGenerator::generate_stripes_horizontal(
+                        self.width,
+                        self.height,
+                        self.stripe_spacing,
+                        self.num_stripe_colors,
+                    ),
+                );
+            }
+            false => {
+                self.bmp = Some(
+                    bmp_generator::bmp_generator::BmpGenerator::generate_stripes(
+                        self.width,
+                        self.height,
+                        self.stripe_spacing,
+                        self.num_stripe_colors,
+                    ),
+                );
+            }
+        }
 
         self.update_image();
     }
@@ -243,9 +259,6 @@ impl eframe::App for TestPatternGenerator {
 
             ui.add_space(10.0);
 
-            ui.add(egui::Slider::new(&mut self.ellipse_rotation, 0.0..=360.0).text("Rotation"));
-
-            //ui.label("Color:");
             ui.add_space(10.0);
             ui.add(
                 egui::Slider::new(&mut self.ellipse_color[0], 0..=255)
@@ -283,9 +296,12 @@ impl eframe::App for TestPatternGenerator {
                     .text("Spacing"),
             );
 
-            if ui.button("Generate stripes").clicked() {
-                self.update_image_with_bmp_stripes();
-            }
+            ui.horizontal(|ui| {
+                if ui.button("Generate stripes").clicked() {
+                    self.update_image_with_bmp_stripes();
+                }
+                ui.add(egui::Checkbox::new(&mut self.horizontal_stripes, "Horizontal"));
+            });
 
             if ui.button("Save").clicked() {
                 self.save_image("assets/image.bmp");
