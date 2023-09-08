@@ -22,10 +22,12 @@ pub struct TestPatternGenerator {
     stripe_spacing: u32,
     rect_start: [u32; 2],
     rect_end: [u32; 2],
+    rect_rotation: f64,
     rect_color: egui::Color32,
-    elipse_center: [u32; 2],
-    elipse_size: [u32; 2],
-    elipse_color: egui::Color32,
+    ellipse_center: [u32; 2],
+    ellipse_size: [u32; 2],
+    ellipse_color: egui::Color32,
+    ellipse_rotation: f64,
 }
 
 impl Default for TestPatternGenerator {
@@ -59,10 +61,12 @@ impl Default for TestPatternGenerator {
             scale: 500.0 / 1080.0,
             rect_start: [760, 340],
             rect_end: [1160, 740],
+            rect_rotation: 0.0,
             rect_color: egui::Color32::from_rgb(255, 0, 255),
-            elipse_center: [1920 / 2, 1080 / 2],
-            elipse_size: [200, 200],
-            elipse_color: egui::Color32::from_rgb(0, 255, 255),
+            ellipse_center: [1920 / 2, 1080 / 2],
+            ellipse_size: [200, 200],
+            ellipse_color: egui::Color32::from_rgb(0, 255, 255),
+            ellipse_rotation: 0.0,
         }
     }
 }
@@ -121,21 +125,23 @@ impl TestPatternGenerator {
             self.rect_start,
             self.rect_end,
             color,
+            self.rect_rotation,
         ));
 
         self.update_image();
     }
 
-    pub fn add_elipse(&mut self) {
+    pub fn add_ellipse(&mut self) {
         let color = [
-            self.elipse_color.r(),
-            self.elipse_color.g(),
-            self.elipse_color.b(),
+            self.ellipse_color.r(),
+            self.ellipse_color.g(),
+            self.ellipse_color.b(),
         ];
-        self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::add_elipse(
+        self.bmp = Some(bmp_generator::bmp_generator::BmpGenerator::add_ellipse(
             &mut self.bmp.as_mut().unwrap(),
-            self.elipse_center,
-            self.elipse_size,
+            self.ellipse_center.map(|c| { c as i32 }),
+            self.ellipse_size.map(|s| { s as i32 }),
+            self.ellipse_rotation,
             color,
         ));
 
@@ -179,8 +185,12 @@ impl eframe::App for TestPatternGenerator {
             ui.add(egui::Slider::new(&mut self.rect_start[0], 0..=self.width).text("Start X"));
             ui.add(egui::Slider::new(&mut self.rect_start[1], 0..=self.height).text("Start Y"));
 
-            ui.add(egui::Slider::new(&mut self.rect_end[0], 0..=self.width).text("End X"));
-            ui.add(egui::Slider::new(&mut self.rect_end[1], 0..=self.height).text("End Y"));
+            ui.add(egui::Slider::new(&mut self.rect_end[0], 0..=self.width * 2).text("End X"));
+            ui.add(egui::Slider::new(&mut self.rect_end[1], 0..=self.height * 2).text("End Y"));
+
+            ui.add_space(10.0);
+
+            ui.add(egui::Slider::new(&mut self.rect_rotation, 0.0..=360.0).text("Rotation"));
 
             //ui.label("Color:");
             ui.add_space(10.0);
@@ -199,7 +209,6 @@ impl eframe::App for TestPatternGenerator {
                     .text("Blue")
                     .text_color(egui::Color32::from_rgb(0, 0, 255)),
             );
-            //ui.add(egui::Slider::new(&mut self.rect_color[3], 0..=255).text("Alpha"));
             egui::color_picker::color_edit_button_srgba(
                 ui,
                 &mut self.rect_color,
@@ -208,46 +217,61 @@ impl eframe::App for TestPatternGenerator {
 
             ui.add_space(5.0);
 
-            if ui.button("Generate rect").clicked() {
-                self.add_rect();
-            }
+            ui.horizontal(|ui| {
+                if ui.button("Generate rect").clicked() {
+                    self.add_rect();
+                }
+
+                if ui.button("Rotation sweep").clicked() {
+                    let original_rotation = self.rect_rotation;
+                    for i in (0..360).step_by(self.rect_rotation as usize)
+                    {
+                        self.rect_rotation = i as f64;
+                        self.add_rect();
+                    }
+                    self.rect_rotation = original_rotation;
+                }
+            });
 
             ui.add_space(32.0);
 
-            ui.add(egui::Slider::new(&mut self.elipse_center[0], 0..=self.width).text("Center X"));
-            ui.add(egui::Slider::new(&mut self.elipse_center[1], 0..=self.height).text("Center Y"));
+            ui.add(egui::Slider::new(&mut self.ellipse_center[0], 0..=self.width).text("Center X"));
+            ui.add(egui::Slider::new(&mut self.ellipse_center[1], 0..=self.height).text("Center Y"));
 
-            ui.add(egui::Slider::new(&mut self.elipse_size[0], 0..=self.width).text("Width"));
-            ui.add(egui::Slider::new(&mut self.elipse_size[1], 0..=self.height).text("Height"));
+            ui.add(egui::Slider::new(&mut self.ellipse_size[0], 0..=self.width).text("Radius X"));
+            ui.add(egui::Slider::new(&mut self.ellipse_size[1], 0..=self.height).text("Radius Y"));
+
+            ui.add_space(10.0);
+
+            ui.add(egui::Slider::new(&mut self.ellipse_rotation, 0.0..=360.0).text("Rotation"));
 
             //ui.label("Color:");
             ui.add_space(10.0);
             ui.add(
-                egui::Slider::new(&mut self.elipse_color[0], 0..=255)
+                egui::Slider::new(&mut self.ellipse_color[0], 0..=255)
                     .text("Red")
                     .text_color(egui::Color32::from_rgb(255, 0, 0)),
             );
             ui.add(
-                egui::Slider::new(&mut self.elipse_color[1], 0..=255)
+                egui::Slider::new(&mut self.ellipse_color[1], 0..=255)
                     .text("Green")
                     .text_color(egui::Color32::from_rgb(0, 255, 0)),
             );
             ui.add(
-                egui::Slider::new(&mut self.elipse_color[2], 0..=255)
+                egui::Slider::new(&mut self.ellipse_color[2], 0..=255)
                     .text("Blue")
                     .text_color(egui::Color32::from_rgb(0, 0, 255)),
             );
-            //ui.add(egui::Slider::new(&mut self.elipse_color[3], 0..=255).text("Alpha"));
             egui::color_picker::color_edit_button_srgba(
                 ui,
-                &mut self.elipse_color,
+                &mut self.ellipse_color,
                 egui::color_picker::Alpha::Opaque,
             );
 
             ui.add_space(5.0);
 
-            if ui.button("Generate elipse").clicked() {
-                self.add_elipse();
+            if ui.button("Generate ellipse").clicked() {
+                self.add_ellipse();
             }
 
             ui.add_space(32.0);
